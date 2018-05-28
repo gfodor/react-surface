@@ -73,8 +73,8 @@
       "test"
     ],
     "build": "webpack --config ./demo/webpack.config.ts --env.outputFolder ../dist --env.module commonjs",
-    "dev-server": "webpack-dev-server --config ./demo/webpack.config.ts --env.index --env.cache --env.stats --env.debug --env.hmr --env.sourceMaps",
-    "dev-server-fast": "webpack-dev-server --config ./demo/webpack.config.ts --env.index --env.vendor --env.cache --env.hmr",
+    "dev-server": "webpack-dev-server --config ./demo/webpack.config.ts --env.index --env.cache --env.stats --env.debug --env.hmr --env.sourceMaps --host 0.0.0.0 --public react-surface.test:8080",
+    "dev-server-fast": "webpack-dev-server --config ./demo/webpack.config.ts --env.index --env.vendor --env.cache --env.hmr --host 0.0.0.0 --public react-surface.test:8080",
     "test": "jest",
     "test-debug": "node --inspect-brk ./node_modules/jest/bin/jest.js --runInBand",
     "lint": "tslint --project tsconfig.json --config tslint.json"
