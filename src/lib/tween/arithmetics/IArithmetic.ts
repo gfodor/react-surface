@@ -8,6 +8,7 @@ export interface IArithmetic<T> {
   maxDivide (v: T, divisor: T): number;
   scalarDivide (v: T, divisor: number): T;
   equals (a: T, b: T): boolean;
+  round (v: T): T;
   abs (v: T): T;
   test (v: any): boolean;
   parse (v: any): T;

@@ -7,15 +7,28 @@ import {App} from './App';
 import {SurfaceRenderer} from '../../src';
 import {useStrict} from 'mobx';
 import {AppState} from './state/AppState';
+import {TwitchClient} from './state/TwitchClient';
+import {parse as parseQueryString} from 'query-string';
 
 // Initialize app state
+const options = parseQueryString(window.location.search);
 useStrict(true);
 const state = new AppState();
+
 const domNode = document.createElement('div');
 domNode.className = 'root';
 document.body.appendChild(domNode);
+
 const renderer = new SurfaceRenderer(domNode);
 state.surface = renderer.store;
+state.options.setEnableDevTools(!options.live);
+
+const twitchClient = new TwitchClient({
+  clientID: options.clientID,
+  channel: options.channel
+});
+
+twitchClient.initialize(state.stream, state.chatbox, state.toasties);
 
 // Load global assets
 loadFonts({

@@ -8,8 +8,6 @@
     "checkJs": false,
     "experimentalDecorators": true,
     "noImplicitAny": true,
-    "strict": true,
-    "strictNullChecks": true,
     "moduleResolution": "node",
     "module": "commonjs",
     "target": "es2017",

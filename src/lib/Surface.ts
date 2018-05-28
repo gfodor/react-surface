@@ -1,26 +1,36 @@
-import {Application, Container, Text, TextMetrics, TextStyle, DisplayObject, interaction} from 'pixi.js';
+import {Application, Container, Graphics, Text, Sprite,
+  TextMetrics, TextStyle, DisplayObject, interaction} from 'pixi.js';
 import {diffEventProps, pixiEvents, surfaceEvents} from './events';
-import {getYogaValueTransformer} from './YogaHelpers';
+import {setYogaValue} from './YogaHelpers';
 import {Tween} from './tween/Tween';
 import TweenInstruction from './tween/TweenInstruction';
 import {uniq} from 'lodash';
 import {definedOr, GettableProps, TweenableProps} from './helpers';
 import {SurfaceBackground, SurfaceBorder, SurfaceImage} from './SurfaceEffects';
 import {SurfaceStore} from './SurfaceStore';
+import {DropShadowFilter} from '@pixi/filter-drop-shadow';
+import {commonColors} from './constants';
 
 const yoga = require('yoga-layout');
 
+const defaultTextStyle = new PIXI.TextStyle({});
+
 export class Surface {
   private mutableChildren: Surface[] = [];
+  private surfaceMaskBoundsHash: string;
+  private inverseMask: Graphics | Sprite;
+  private surfaceMaskId: SurfaceMaskId;
 
-  protected pixiContainer: Container;
+  public pixiContainer: Container;
+  private globalPosition: Point = {x: 0, y: 0};
+  private lastFrameBounds: Bounds;
+  private dropShadowFilter: DropShadowFilter;
   private backgroundColor?: SurfaceBackground;
   private backgroundImage?: SurfaceImage;
   private border?: SurfaceBorder;
   private mask?: SurfaceBorder;
   private childContainer: Container;
   private pixiText?: Text;
-  private layout?: YogaLayout;
   private textStyleGetters: GettableProps<PIXI.TextStyleOptions> = {};
   private tweens: TweenableProps<SurfaceProps> = {};
 
@@ -52,6 +62,7 @@ export class Surface {
     }
 
     this.pixiContainer.name = type!;
+    this.lastFrameBounds = this.getGlobalBounds();
   }
 
   destroy () {
@@ -87,9 +98,7 @@ export class Surface {
     const textStyle = {};
     for (const key in this.textStyleGetters) {
       const value = (this.textStyleGetters as any)[key]();
-      if (value !== undefined) {
-        (textStyle as any)[key] = value;
-      }
+      (textStyle as any)[key] = value !== undefined ? value : (defaultTextStyle as any)[key];
     }
     return textStyle;
   }
@@ -104,8 +113,28 @@ export class Surface {
     });
   }
 
-  measureText () {
-    const measurement = TextMetrics.measureText(this.pixiText!.text, new TextStyle(this.cascadedTextStyle));
+  getGlobalBounds () {
+    let {width, height} = this.yogaNode.getComputedLayout();
+    width = width || 0;
+    height = height || 0;
+    return {
+      width,
+      height,
+      left: this.globalPosition.x,
+      top: this.globalPosition.y,
+      right: this.globalPosition.x + width,
+      bottom: this.globalPosition.y + height
+    };
+  }
+
+  measureText (width: number) {
+    const measurement = TextMetrics.measureText(
+      this.pixiText!.text, new TextStyle({
+        ...this.cascadedTextStyle,
+        wordWrapWidth: width
+      })
+    );
+
     return {
       width: measurement.maxLineWidth,
       height: measurement.lines.length * measurement.lineHeight
@@ -161,19 +190,19 @@ export class Surface {
           tween = new Tween(next.to, next.options);
           tween.instruct(next);
           (this.tweens as any)[key] = tween;
-        } else if (!next.equals(tween.lastInstruction)) {
+        } else if (!next.equals(tween.instruction)) {
           tween.instruct(next);
         }
-        continue;
-      }
-
-      if (next instanceof Tween) {
+      } else if (next instanceof Tween) {
         (this.tweens as any)[key] = next;
-        continue;
+        if (prev instanceof TweenInstruction) {
+          tween.stop();
+        }
+        tween = next;
       }
 
-      if (tween && prev instanceof TweenInstruction) {
-        tween.stop();
+      if (!tween) {
+        delete (this.tweens as any)[key];
       }
     }
 
@@ -217,16 +246,22 @@ export class Surface {
     }
   }
 
+  cascadeGlobalPosition (x: number = 0, y: number = 0) {
+    const {left, top} = this.yogaNode.getComputedLayout();
+    this.globalPosition = {
+      x: x + left,
+      y: y + top
+    };
+
+    for (const child of this.children) {
+      child.cascadeGlobalPosition(this.globalPosition.x, this.globalPosition.y);
+    }
+  }
+
   updateYoga () {
-    const yogaNode = this.yogaNode as any;
     for (const key in this.props) {
-      const transformer = getYogaValueTransformer(key);
-      const setFn = yogaNode[transformer.functionName];
-      if (setFn) {
-        const value = ((this.tweenableProps as any)[key] as Tween<any>).value;
-        const args = transformer.transform(value);
-        setFn.apply(yogaNode, args);
-      }
+      const value = ((this.tweenableProps as any)[key] as Tween<any>).value;
+      setYogaValue(this.yogaNode, key, value);
     }
   }
 
@@ -258,6 +293,14 @@ export class Surface {
       () => this.childContainer
     );
 
+    if (this.props.dropShadowColor !== undefined) {
+      this.dropShadowFilter = new DropShadowFilter();
+      this.pixiContainer.filters = [this.dropShadowFilter];
+    } else {
+      this.pixiContainer.filters = null;
+      delete this.dropShadowFilter;
+    }
+
     const needsMask = this.props.overflow === 'hidden' ||
       this.props.backgroundImage !== undefined ||
       (this.props.backgroundColor !== undefined && this.props.borderRadius !== undefined);
@@ -285,11 +328,6 @@ export class Surface {
 
   updatePixi () {
     const layout = this.yogaNode.getComputedLayout();
-    if (!this.layout || layout.width !== this.layout.width || layout.height !== this.layout.height) {
-      this.emitEvent('onSizeChanged', layout);
-    }
-
-    this.layout = layout;
 
     this.pixiContainer.rotation = this.tweenableProps.rotation.value || 0;
     this.pixiContainer.skew.set(
@@ -309,8 +347,13 @@ export class Surface {
       layout.top + definedOr(this.tweenableProps.translateY.value, 0) + this.pixiContainer.pivot.y
     );
 
+    const changes = this.pollBoundsChanges();
+
     if (this.pixiText) {
-      Object.assign(this.pixiText.style, this.cascadedTextStyle);
+      Object.assign(this.pixiText.style, this.cascadedTextStyle, {wordWrapWidth: layout.width});
+      if (changes.size) { // TODO check if
+        this.yogaNode.markDirty();
+      }
     }
 
     if (this.backgroundColor) {
@@ -333,16 +376,82 @@ export class Surface {
       }
     }
 
-    if (this.mask) {
-      this.mask.update(layout, this.tweenableProps);
-    }
-
     if (this.border) {
       this.border.update(layout, this.tweenableProps);
     }
 
-    this.pixiContainer.mask = (this.props.overflow === 'hidden' ? this.mask : undefined) as any;
+    this.updateMasks(layout);
+
     this.pixiContainer.alpha = definedOr(this.tweenableProps.opacity.value, 1);
+
+    if (this.dropShadowFilter) {
+      this.dropShadowFilter.rotation = definedOr(this.tweenableProps.dropShadowRotation.value, 0);
+      this.dropShadowFilter.alpha = definedOr(this.tweenableProps.dropShadowAlpha.value, 1) * this.pixiContainer.alpha;
+      this.dropShadowFilter.blur = definedOr(this.tweenableProps.dropShadowSize.value, 0);
+      this.dropShadowFilter.color = definedOr(this.tweenableProps.dropShadowColor.value, commonColors.transparent).rgbNumber();
+      this.dropShadowFilter.distance = definedOr(this.tweenableProps.dropShadowDistance.value, 0);
+    }
+  }
+
+  pollBoundsChanges () {
+    const bounds = this.getGlobalBounds();
+
+    const sizeChanged = bounds.width !== this.lastFrameBounds.width || bounds.height !== this.lastFrameBounds.height;
+    const positionChanged = bounds.left !== this.lastFrameBounds.left || bounds.top !== this.lastFrameBounds.top;
+
+    if (sizeChanged) {
+      this.emitEvent('onBoundsChanged', bounds);
+      this.emitEvent('onSizeChanged', bounds);
+    } else if (positionChanged) {
+      this.emitEvent('onBoundsChanged', bounds);
+    }
+
+    this.lastFrameBounds = bounds;
+
+    return {
+      size: sizeChanged,
+      position: positionChanged
+    };
+  }
+
+  updateMasks (layout: Size) {
+    if (this.mask) {
+      this.mask.update(layout, this.tweenableProps);
+    }
+
+    const surfaceMask = this.root.surfaceMasks.get(this.props.maskedBy!);
+
+    if (surfaceMask) {
+      const targetBounds = this.getGlobalBounds();
+      const maskBounds = surfaceMask.getGlobalBounds();
+      const surfaceMaskBoundsHash = JSON.stringify([targetBounds, maskBounds]);
+
+      const didBoundsChange = surfaceMaskBoundsHash !== this.surfaceMaskBoundsHash;
+      this.surfaceMaskBoundsHash = surfaceMaskBoundsHash;
+      if (!this.inverseMask || didBoundsChange) {
+        if (this.inverseMask) {
+          this.pixiContainer.removeChild(this.inverseMask);
+          delete this.inverseMask;
+        }
+        this.inverseMask = generateInverseBoxMask(targetBounds, maskBounds);
+        this.pixiContainer.addChild(this.inverseMask);
+        this.pixiContainer.mask = this.inverseMask;
+      }
+    } else {
+      if (this.inverseMask) {
+        this.pixiContainer.removeChild(this.inverseMask);
+        delete this.inverseMask;
+      }
+      this.pixiContainer.mask = (this.props.overflow === 'hidden' ? this.mask : undefined) as any;
+    }
+
+    if (this.props.mask !== undefined) {
+      this.root.surfaceMasks.delete(this.surfaceMaskId);
+      this.root.surfaceMasks.set(this.surfaceMaskId = this.props.mask, this);
+    } else if (this.surfaceMaskId) {
+      this.root.surfaceMasks.delete(this.surfaceMaskId);
+      delete this.surfaceMaskId;
+    }
   }
 
   appendChild (child: Surface) {
@@ -396,20 +505,27 @@ export class Surface {
   }
 
   protected addEventListener (name: string, handler: (e: interaction.InteractionEvent) => any) {
-    this.pixiContainer.addListener(surfaceEvents[name].pixiName, handler);
+    for (const pixiName of surfaceEvents[name].pixiNames) {
+      this.pixiContainer.addListener(pixiName as any, handler);
+    }
   }
 
   protected removeEventListener (name: string, handler: (e: interaction.InteractionEvent) => any) {
-    this.pixiContainer.removeListener(surfaceEvents[name].pixiName, handler);
+    for (const pixiName of surfaceEvents[name].pixiNames) {
+      this.pixiContainer.removeListener(pixiName as any, handler);
+    }
   }
 
   emitEvent (name: string, ...args: any[]) {
-    this.pixiContainer.emit(surfaceEvents[name].pixiName, ...args);
+    for (const pixiName of surfaceEvents[name].pixiNames) {
+      this.pixiContainer.emit(pixiName, ...args);
+    }
   }
 }
 
 export class SurfaceRoot extends Surface {
-  private app: Application;
+  public app: Application;
+  public surfaceMasks: Map<SurfaceMaskId, Surface>;
   private target: HTMLElement;
   private store: SurfaceStore;
 
@@ -428,6 +544,7 @@ export class SurfaceRoot extends Surface {
     this.root = this;
     this.store = store;
     this.surfacesWithTweens = new Map<number, Surface>();
+    this.surfaceMasks = new Map<SurfaceMaskId, Surface>();
     this.target = target;
     this.app = app;
 
@@ -454,6 +571,8 @@ export class SurfaceRoot extends Surface {
       this.app.view.height,
       yoga.DIRECTION_LTR
     );
+
+    this.cascadeGlobalPosition();
 
     const queue: Surface[] = [this];
     while (queue.length) {
@@ -511,4 +630,22 @@ function mount <T extends DisplayObject> (
       setter(undefined);
     }
   }
+}
+
+function generateInverseBoxMask (target: Bounds, mask: Bounds) {
+  const inverse = new Graphics();
+
+  const top = mask.top - target.top;
+  const left = mask.left - target.left;
+  const right = target.right - mask.right;
+  const bottom = target.bottom - mask.bottom;
+
+  const c = commonColors.opaque;
+  SurfaceBorder.prototype.drawSquare.call(
+    inverse, target,
+    [top, right, bottom, left],
+    [c, c, c, c]
+  );
+  
+  return new Sprite(inverse.generateCanvasTexture());
 }

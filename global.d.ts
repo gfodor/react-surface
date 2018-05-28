@@ -13,6 +13,7 @@ type SurfaceValueP = SurfaceValue | Percentage; // SurfaceValue with percentage 
 type SurfaceChild = React.ReactElement<SurfaceProps> | React.ReactNode;
 type SurfaceStyle = YogaProps & RenderProps;
 type SurfaceStyleDict = {[key: string]: SurfaceStyle};
+type SurfaceMaskId = number | string;
 
 // TODO use 'color' package
 type IColor = SurfaceTweenInstruction | {
@@ -31,6 +32,15 @@ type Point = {
 type Size = {
   width: number,
   height: number
+};
+
+type Bounds = {
+  top: number,
+  right: number,
+  width: number;
+  height: number;
+  bottom: number,
+  left: number
 };
 
 type YogaProps = {
@@ -101,6 +111,15 @@ type RenderProps = SurfaceTransform & {
   borderColorRight?: IColor;
   borderColorBottom?: IColor;
   borderColorLeft?: IColor;
+
+  dropShadowDistance?: SurfaceValue,
+  dropShadowColor?: IColor,
+  dropShadowAlpha?: SurfaceValue,
+  dropShadowSize?: SurfaceValue,
+  dropShadowRotation?: SurfaceValue,
+
+  mask?: SurfaceMaskId,
+  maskedBy?: SurfaceMaskId
 };
 
 type SurfaceTransform = {
@@ -123,6 +142,7 @@ type SurfaceEvents = {
   onMouseEnter?: (e: PIXI.interaction.InteractionEvent) => void;
   onMouseLeave?: (e: PIXI.interaction.InteractionEvent) => void;
   onSizeChanged?: (size: Size) => void;
+  onBoundsChanged?: (bounds: Bounds) => void;
 };
 
 type SurfaceProps = SurfaceEvents & RenderProps & YogaProps & {

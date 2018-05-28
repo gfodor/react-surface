@@ -32,6 +32,10 @@ export class ColorArithmetic implements IArithmetic<Color> {
     return this.piggyback('equals', [c1, c2]);
   }
 
+  round (v: Color): Color {
+    return this.piggyback('round', [v]);
+  }
+
   abs (c: Color): Color {
     return this.piggyback('abs', [c]);
   }

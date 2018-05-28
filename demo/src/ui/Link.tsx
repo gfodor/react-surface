@@ -1,26 +1,23 @@
 import * as React from 'react';
-import {SurfaceStyleSheet} from '../../../src/lib/SurfaceStyleSheet';
+import {Interactive} from './Interactive';
+import * as Color from 'color';
 
-export const RichLink = ({name, url}: any) => (
-  <surface {...styles.richLink}>
-    <surface {...styles.richLinkIcon}/>
-    <surface {...styles.richLinkName}>
-      Official {name}
-    </surface>
-    <Link url={url}>{url}</Link>
-  </surface>
-);
+type LinkProps = {
+  url: string
+  children: SurfaceProps['children']
+};
 
-export const Link = ({children, url}: any) => (
-  <surface onClick={url ? () => window.open(url, '_blank') : undefined}>
+export const Link = ({children, url, ...rest}: LinkProps) => (
+  <Interactive style={styles.link} onClick={() => window.open(url, '_blank')} {...rest}>
     {children}
-  </surface>
+  </Interactive>
 );
 
-const styles = SurfaceStyleSheet.create({
-  richLink: {
-  },
-
-  link: {
-  },
-});
+const styles = {
+  link (isHovered: boolean, isActive: boolean) {
+    return {
+      color: isHovered ? Color.rgb(isActive ? '#42acb4' : '#54f7ff') : undefined,
+      fontWeight: 'bold'
+    };
+  }
+};

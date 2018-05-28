@@ -43,7 +43,7 @@ export class Grid {
   ) {}
 
   fontSize (rows: number) {
-    return this.rowHeight * rows * 0.7893;
+    return this.rowHeight * rows * 0.8660;
   }
 
   xParts (n: number, gutter = this.gutterWidth) {

@@ -5,10 +5,13 @@ import {LifecycleTransitionGroup} from '../lib/LifecycleTransitionGroup';
 import {AppStateComponent} from '../AppStateComponent';
 
 @observer
-export class ToastyOverlay extends AppStateComponent<{style?: SurfaceStyle}> {
+export class ToastyList extends AppStateComponent<{style?: SurfaceStyle}> {
   render () {
     return (
-      <surface {...this.props.style} onSizeChanged={(size) => this.appState.toasties.updateContainerSize(size)}>
+      <surface
+        {...this.props.style}
+        onBoundsChanged={(bounds) => this.appState.toasties.updateContainerBounds(bounds)}
+      >
         <LifecycleTransitionGroup>
           {this.appState.toasties.visibleToasties.map((toasty, index) => (
             <ToastyItem

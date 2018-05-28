@@ -4,6 +4,8 @@ class TweenOptionsProps {
   easing: BezierEasing = BezierEasing.presets.easeOut;
   delay: number = 0;
   duration: number = 1000;
+  immediate: boolean; // Immediately 'set' the first tween value received, no matter which tween method is used
+  rounded: boolean;
 
   protected props: Partial<TweenOptionsProps>;
 

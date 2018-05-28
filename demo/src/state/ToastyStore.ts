@@ -1,34 +1,32 @@
-import {Toasty, ToastyState} from './Toasty';
-import {observable, computed, action, reaction} from 'mobx';
+import {InfoToasty, Toasty, ToastyState} from './Toasty';
+import {observable, computed, action, reaction, when} from 'mobx';
 
-export const mockedMessages = [
-  'You are looking mighty fine today, good sir!',
-  'The pen is mightier than the sword if the sword is very short, and the pen is very sharp.',
-  'In ancient times cats were worshipped as gods. They have not forgotten this.',
-  '+++Divide By Cucumber Error. Please Reinstall Universe And Reboot +++',
-  'The key to a continued heartbeat is to MOVE YOUR FEET.',
-  'I give my life, on the steps... To heaven!',
-  'My brethren fell to deaths cold embrace, Yet i stand alone against the countless horde!'
-];
+const emptyBounds = {
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+  width: 0,
+  height: 0
+};
 
-const logSize = 3;
-const presentationCooldownTime = 3500;
+export const maxToastyLogSize = 3;
+const toastyCooldown = 5000;
+const infoToastyCooldown = 60 * 5 * 1000;
 const toastyTimes: {[key: string]: number} = {
-  [ToastyState.Exclaiming]: 1000,
-  [ToastyState.Presenting]: 3000
+  [ToastyState.Exclaiming]: 1500,
+  [ToastyState.Presenting]: 6000
 };
 
 export class ToastyStore {
+  private isRunning: boolean = false;
   private toastyTimeoutIds: any = {};
+  private infoToastyContent: any[] = [];
+  private nextInfoToastyIndex: number = -1;
 
   @observable toasties: Toasty[] = [];
-  @observable containerSize: Size = {width: 0, height: 0};
-  @observable currentTime: number = 0;
-  @observable nextPresentationTime: number = 0;
-
-  @computed get canStartNewPresentation () {
-    return this.nextPresentationTime <= this.currentTime;
-  }
+  @observable containerBounds: Bounds = emptyBounds;
+  @observable overlaySize: Size = {width: 0, height: 0};
 
   @computed get visibleToasties () {
     return this.toasties
@@ -42,81 +40,92 @@ export class ToastyStore {
       .sort(Toasty.compareAge);
   }
 
-  @computed get currentPresentation () {
-    const pres = this.toasties.find((toasty) =>
-      toasty.state !== ToastyState.Idle && toasty.state <= ToastyState.Presenting
-    );
-
-    if (pres) {
-      return pres;
-    }
-
-    return this.toasties
-      .filter((toasty) => toasty.state === ToastyState.Idle)
-      .sort(Toasty.compareAge)[0];
-  }
-
   @action
-  spawnToasty (queue: boolean = true) {
-    const toasty = new Toasty();
-    toasty.message = randomizeItem(mockedMessages);
-    if (!queue) {
-      toasty.state = ToastyState.Presenting;
-    }
+  addToasty (toasty: Toasty) {
     this.toasties.push(toasty);
   }
 
   @action
-  updateContainerSize (size: Size) {
-    this.containerSize = size;
+  updateContainerBounds (bounds: Bounds) {
+    this.containerBounds = bounds;
   }
 
   @action
-  cooldownPresentation () {
-    this.nextPresentationTime = this.currentTime + presentationCooldownTime;
+  updateOverlaySize (size: Size) {
+    this.overlaySize = size;
   }
 
-  @action
-  updateTime () {
-    this.currentTime = new Date().getTime();
+  setInfoToastyContent (content: any[]) {
+    this.infoToastyContent = content;
   }
 
-  progress (toasty: Toasty, to: ToastyState = toasty.state + 1) {
+  addNextInfoToasty () {
+    this.nextInfoToastyIndex = (this.nextInfoToastyIndex + 1) % this.infoToastyContent.length;
+    const toasty = new InfoToasty(this.infoToastyContent[this.nextInfoToastyIndex]);
+    this.addToasty(toasty);
+
+    when(
+      () => toasty.state === ToastyState.Archived,
+      () => {
+        if (this.isRunning) {
+          setTimeout(() => this.addNextInfoToasty(), infoToastyCooldown);
+        }
+      }
+    );
+  }
+
+  private findToasty (from: ToastyState, to: ToastyState = from) {
+    return this.toasties
+      .filter((toasty) => toasty.state >= from && toasty.state <= to)
+      .sort(Toasty.compareAge)[0];
+  }
+
+  private progressToasty (toasty: Toasty, to: ToastyState = toasty.state + 1) {
     toasty.progress(to);
 
     if (toasty.state < ToastyState.Logging) {
       clearTimeout(this.toastyTimeoutIds[toasty.id]);
       const nextMode = toasty.state + 1;
       this.toastyTimeoutIds[toasty.id] = setTimeout(
-        () => this.progress(toasty, nextMode),
+        () => this.progressToasty(toasty, nextMode),
         toastyTimes[toasty.state] || 0
       );
     }
   }
 
-  initializeBehavior () {
-    // Update time every second
-    const currentTimeIntervalId = setInterval(() => this.updateTime(), 1000);
-    return [
-      () => clearInterval(currentTimeIntervalId),
+  private acceptNextToasty () {
+    const pres = () => this.findToasty(ToastyState.Exclaiming, ToastyState.Presenting);
+    const idle = () => this.findToasty(ToastyState.Idle);
 
-      // Show new presentations
-      reaction(
-        () => ({toasty: this.currentPresentation, allowed: this.canStartNewPresentation}),
-        (payload) => {
-          if (payload.toasty && payload.allowed) {
-            this.cooldownPresentation();
-            this.progress(payload.toasty);
-          }
-        },
-        true
-      ),
+    when(
+      () => !pres() && !!idle(),
+      () => {
+        if (this.isRunning) {
+          const toasty = idle();
+          this.progressToasty(toasty);
+          when(
+            () => toasty.state > ToastyState.Presenting,
+            () => setTimeout(() => this.acceptNextToasty(), toastyCooldown)
+          );
+        }
+      }
+    );
+  }
+
+  initializeBehavior () {
+    this.isRunning = true;
+
+    this.acceptNextToasty();
+    this.addNextInfoToasty();
+
+    return [
+      () => this.isRunning = false,
 
       // Archive toasties when log is full
       reaction(
         () => this.loggedToasties,
         (logged) => {
-          const expired = logged.length - logSize;
+          const expired = logged.length - maxToastyLogSize;
           if (expired > 0) {
             logged
               .slice(0, expired)
@@ -127,23 +136,7 @@ export class ToastyStore {
           }
         },
         true
-      ),
-
-      // Queue new toasties automatically
-      reaction(
-        () => ({toasty: this.currentPresentation, allowed: this.canStartNewPresentation}),
-        (payload) => {
-          if (!payload.toasty && payload.allowed) {
-            this.spawnToasty();
-          }
-        },
-        true
       )
     ];
   }
-}
-
-function randomizeItem<T> (items: T[]) {
-  const randomIndex = Math.floor(Math.random() * (items.length) - 0.01);
-  return items[randomIndex];
 }

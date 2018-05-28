@@ -28,6 +28,10 @@ export class NumberArithmetic implements IArithmetic<number> {
     return a === b;
   }
 
+  round (v: number) {
+    return Math.round(v);
+  }
+
   abs (a: number): number {
     return Math.abs(a);
   }

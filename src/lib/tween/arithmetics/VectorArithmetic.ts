@@ -66,6 +66,10 @@ export class VectorArithmetic implements IArithmetic<number[]> {
     return true;
   }
 
+  round (v: number[]) {
+    return v.map(Math.round);
+  }
+
   abs (v: number[]): number[] {
     return v.map((e) => Math.abs(e));
   }

@@ -1,48 +1,56 @@
 const yoga = require('yoga-layout');
 
-type YogaValueTransformerFn = (value: any) => any[];
-type YogaValueTransformer = {transform: YogaValueTransformerFn, functionName: string};
+const defaultNode = yoga.Node.create();
+
+type YogaValueTransformerFn = (value: any) => any;
+type YogaValueTransformerArgsFn = (value: any) => any[];
+type YogaValueTransformer = {
+  propertyName?: string
+  args?: YogaValueTransformerArgsFn,
+  transform?: YogaValueTransformerFn
+};
 
 const mixedYogaValueTransformers: {[key: string]: YogaValueTransformerFn | YogaValueTransformer} = {
+  top: {propertyName: 'position', args: (value: number) => [yoga.EDGE_TOP, value]},
+  right: {propertyName: 'position', args: (value: number) => [yoga.EDGE_RIGHT, value]},
+  bottom: {propertyName: 'position', args: (value: number) => [yoga.EDGE_BOTTOM, value]},
+  left: {propertyName: 'position', args: (value: number) => [yoga.EDGE_LEFT, value]},
+
+  border: {propertyName: 'border', args: (value: number) => [yoga.EDGE_ALL, value]},
+  borderTop: {propertyName: 'border', args: (value: number) => [yoga.EDGE_TOP, value]},
+  borderRight: {propertyName: 'border', args: (value: number) => [yoga.EDGE_RIGHT, value]},
+  borderBottom: {propertyName: 'border', args: (value: number) => [yoga.EDGE_BOTTOM, value]},
+  borderLeft: {propertyName: 'border', args: (value: number) => [yoga.EDGE_LEFT, value]},
+
+  margin: {propertyName: 'margin', args: (value: number) => [yoga.EDGE_ALL, value]},
+  marginTop: {propertyName: 'margin', args: (value: number) => [yoga.EDGE_TOP, value]},
+  marginRight: {propertyName: 'margin', args: (value: number) => [yoga.EDGE_RIGHT, value]},
+  marginBottom: {propertyName: 'margin', args: (value: number) => [yoga.EDGE_BOTTOM, value]},
+  marginLeft: {propertyName: 'margin', args: (value: number) => [yoga.EDGE_LEFT, value]},
+
+  padding: {propertyName: 'padding', args: (value: number) => [yoga.EDGE_ALL, value]},
+  paddingTop: {propertyName: 'padding', args: (value: number) => [yoga.EDGE_TOP, value]},
+  paddingRight: {propertyName: 'padding', args: (value: number) => [yoga.EDGE_RIGHT, value]},
+  paddingBottom: {propertyName: 'padding', args: (value: number) => [yoga.EDGE_BOTTOM, value]},
+  paddingLeft: {propertyName: 'padding', args: (value: number) => [yoga.EDGE_LEFT, value]},
+  
+  position: {
+    propertyName: 'positionType',
+    transform (value: string) {
+      switch (value) {
+        case 'relative': return yoga.POSITION_TYPE_RELATIVE;
+        case 'absolute': return yoga.POSITION_TYPE_ABSOLUTE;
+      }
+      throw new Error('Position not supported: ' + value);
+    }
+  },
+
   display (value: string) {
     switch (value) {
       case 'flex': return yoga.DISPLAY_FLEX;
       case 'none': return yoga.DISPLAY_NONE;
     }
-  },
-
-  top: {functionName: 'setPosition', transform: (value: number) => [yoga.EDGE_TOP, value]},
-  right: {functionName: 'setPosition', transform: (value: number) => [yoga.EDGE_RIGHT, value]},
-  bottom: {functionName: 'setPosition', transform: (value: number) => [yoga.EDGE_BOTTOM, value]},
-  left: {functionName: 'setPosition', transform: (value: number) => [yoga.EDGE_LEFT, value]},
-
-  border: {functionName: 'setBorder', transform: (value: number) => [yoga.EDGE_ALL, value]},
-  borderTop: {functionName: 'setBorder', transform: (value: number) => [yoga.EDGE_TOP, value]},
-  borderRight: {functionName: 'setBorder', transform: (value: number) => [yoga.EDGE_RIGHT, value]},
-  borderBottom: {functionName: 'setBorder', transform: (value: number) => [yoga.EDGE_BOTTOM, value]},
-  borderLeft: {functionName: 'setBorder', transform: (value: number) => [yoga.EDGE_LEFT, value]},
-
-  margin: {functionName: 'setMargin', transform: (value: number) => [yoga.EDGE_ALL, value]},
-  marginTop: {functionName: 'setMargin', transform: (value: number) => [yoga.EDGE_TOP, value]},
-  marginRight: {functionName: 'setMargin', transform: (value: number) => [yoga.EDGE_RIGHT, value]},
-  marginBottom: {functionName: 'setMargin', transform: (value: number) => [yoga.EDGE_BOTTOM, value]},
-  marginLeft: {functionName: 'setMargin', transform: (value: number) => [yoga.EDGE_LEFT, value]},
-
-  padding: {functionName: 'setPadding', transform: (value: number) => [yoga.EDGE_ALL, value]},
-  paddingTop: {functionName: 'setPadding', transform: (value: number) => [yoga.EDGE_TOP, value]},
-  paddingRight: {functionName: 'setPadding', transform: (value: number) => [yoga.EDGE_RIGHT, value]},
-  paddingBottom: {functionName: 'setPadding', transform: (value: number) => [yoga.EDGE_BOTTOM, value]},
-  paddingLeft: {functionName: 'setPadding', transform: (value: number) => [yoga.EDGE_LEFT, value]},
-  
-  position: {
-    functionName: 'setPositionType',
-    transform (value: string) {
-      switch (value) {
-        case 'relative': return [yoga.POSITION_TYPE_RELATIVE];
-        case 'absolute': return [yoga.POSITION_TYPE_ABSOLUTE];
-      }
-      throw new Error('Position not supported: ' + value);
-    }
+    throw new Error('Display not supported: ' + value);
   },
 
   overflow (value: string) {
@@ -51,6 +59,7 @@ const mixedYogaValueTransformers: {[key: string]: YogaValueTransformerFn | YogaV
       case 'hidden': return yoga.OVERFLOW_HIDDEN;
       case 'scroll': return yoga.OVERFLOW_SCROLL;
     }
+    throw new Error('Overflow not supported: ' + value);
   },
 
   alignItems (value: string) {
@@ -64,6 +73,7 @@ const mixedYogaValueTransformers: {[key: string]: YogaValueTransformerFn | YogaV
       case 'space-between': return yoga.ALIGN_SPACE_BETWEEN;
       case 'space-around': return yoga.ALIGN_SPACE_AROUND;
     }
+    throw new Error('AlignItems not supported: ' + value);
   },
 
   justifyContent (value: string) {
@@ -75,6 +85,7 @@ const mixedYogaValueTransformers: {[key: string]: YogaValueTransformerFn | YogaV
       case 'space-around': return yoga.JUSTIFY_SPACE_AROUND;
       case 'space-evenly': return yoga.JUSTIFY_SPACE_EVENLY;
     }
+    throw new Error('JustifyContent not supported: ' + value);
   },
 
   flexDirection (value: string) {
@@ -82,6 +93,7 @@ const mixedYogaValueTransformers: {[key: string]: YogaValueTransformerFn | YogaV
       case 'column': return yoga.FLEX_DIRECTION_COLUMN;
       case 'row': return yoga.FLEX_DIRECTION_ROW;
     }
+    throw new Error('FlexDirection not supported: ' + value);
   },
 
   flexWrap (value: string) {
@@ -90,78 +102,50 @@ const mixedYogaValueTransformers: {[key: string]: YogaValueTransformerFn | YogaV
       case 'nowrap': return yoga.WRAP_NO_WRAP;
       case 'wrap-reverse': return yoga.WRAP_REVERSE;
     }
+    throw new Error('flexWrap not supported: ' + value);
   }
 };
 
-export function getYogaValueTransformer (propertyName: string): YogaValueTransformer {
+const transformerCache: any = {};
+function getYogaValueTransformer (propertyName: string) {
+  if (transformerCache.hasOwnProperty(propertyName)) {
+    return transformerCache[propertyName];
+  }
+
+  const mix = {
+    propertyName,
+    transform: (value: any) => value,
+    args: (value?: any) => [value]
+  };
+
   const transformer = mixedYogaValueTransformers[propertyName];
-  if (!transformer) {
-    return {
-      transform: (value: any) => [value],
-      functionName: getYogaNodeSetFunctionName(propertyName)
-    };
-  }
-
   if (typeof transformer === 'function') {
-    return {
-      transform: (value) => [transformer(value)],
-      functionName: getYogaNodeSetFunctionName(propertyName)
-    };
+    mix.transform = transformer;
+  } else if (transformer) {
+    Object.assign(mix, transformer);
   }
 
-  return transformer;
+  transformerCache[propertyName] = mix;
+  return mix;
 }
 
-export function getYogaNodeSetFunctionName (propertyName: string) {
-  return 'set' + propertyName[0].toUpperCase() + propertyName.substr(1);
+function getYogaPropertyFunction (node: YogaNode, propertyName: string, method: 'get' | 'set') {
+  const functionName = method + propertyName.substr(0, 1).toUpperCase() + propertyName.substr(1);
+  return (node as any)[functionName];
 }
 
-type ValueTaker = (name: string, fallbackValue: any) => any;
+export function setYogaValue (node: YogaNode, propertyName: string, value: any) {
+  const transformer = getYogaValueTransformer(propertyName);
+  const getter = getYogaPropertyFunction(node, transformer.propertyName, 'get');
+  const setter = getYogaPropertyFunction(node, transformer.propertyName, 'set');
 
-const edgeNames = ['Top', 'Right', 'Bottom', 'Left'];
-const edgeValues = [yoga.EDGE_TOP, yoga.EDGE_RIGHT, yoga.EDGE_BOTTOM, yoga.EDGE_LEFT];
-export function takeYogaEdgeValues (
-  source: any | ValueTaker,
-  propertyNameBase: string,
-  getArray: boolean = false,
-  fallbackBaseValue: any = 0
-) {
-  let take = source;
-  if (typeof source !== 'function') {
-    take = (name: string, fallbackValue: any) => {
-      if (source.hasOwnProperty(name)) {
-        const value = source[name];
-        delete source[name];
-        return value;
-      }
-      return fallbackValue;
-    };
+  if (!(getter && setter)) {
+    return;
   }
 
-  const baseValue: any = take(propertyNameBase, fallbackBaseValue);
+  const valueToSet = value === undefined ?
+    getter.apply(defaultNode, transformer.args()) :
+    transformer.transform(value);
 
-  const initialValues = getArray ?
-    [baseValue, baseValue, baseValue, baseValue] :
-    {
-      [yoga.EDGE_TOP]: baseValue,
-      [yoga.EDGE_RIGHT]: baseValue,
-      [yoga.EDGE_BOTTOM]: baseValue,
-      [yoga.EDGE_LEFT]: baseValue
-    };
-
-  return edgeNames.reduce(
-    (values, cornerName, index) => {
-      const propertyName = propertyNameBase + cornerName;
-      const value = take(propertyName);
-      if (value !== undefined) {
-        if (getArray) {
-          values[index] = value;
-        } else {
-          values[edgeValues[index]] = value;
-        }
-      }
-      return values;
-    },
-    initialValues
-  );
+  setter.apply(node, transformer.args(valueToSet));
 }

@@ -1,3 +1,3 @@
 export const fonts = {
-  Default: 'Open Sans'
+  Default: 'Raleway'
 };

@@ -151,9 +151,9 @@ export class SurfaceBorder extends Graphics {
     this.drawRect(0, size.height - widths[2], size.width, widths[2]);
     this.endFill();
 
-    // Right
+    // Left
     this.beginFill(colors[3].rgbNumber(), colors[3].alpha());
-    this.drawRect(0, widths[0], widths[1], size.height - widths[0] - widths[2]);
+    this.drawRect(0, widths[0], widths[3], size.height - widths[0] - widths[2]);
     this.endFill();
   }
 

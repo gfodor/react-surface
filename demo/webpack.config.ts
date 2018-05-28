@@ -66,7 +66,7 @@ export default async function webpackConfig (additionalOptions?: BuildOptions)  
             use: 'css-loader'
           })
         },
-        {test: /\.(json|svg|png|jpe?g)$/, use: 'file-loader'}
+        {test: /\.(json|wav|svg|png|jpe?g)$/, use: 'file-loader'}
       ]
     },
     plugins: compact([
@@ -104,7 +104,7 @@ export default async function webpackConfig (additionalOptions?: BuildOptions)  
     ]),
     devServer: {
       hot: options.hmr,
-      hotOnly: true
+      hotOnly: options.hmr
     },
   };
 
