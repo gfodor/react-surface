@@ -16,7 +16,7 @@ export class Chatbox extends React.Component<{
 }> {
   items: JSX.Element[];
 
-  constructor(props: any) {
+  constructor (props: any) {
     super(props);
 
     this.items = [];
@@ -43,7 +43,7 @@ export class Chatbox extends React.Component<{
     return entries;
   }
 
-  itemGetter(idx: number, scrollTop: number) {
+  itemGetter (idx: number, scrollTop: number) {
     let item = this.items[idx];
 
     if (!item) {
@@ -142,7 +142,7 @@ const pixelsForASpace = 5;
 const styles = {
   chatbox: {
     ...commonStyles.blueBox,
-    padding: grid.gutter,
+    // padding: grid.gutter,
     borderRadius: grid.gutter / 2,
     flexGrow: 1,
     overflow: 'hidden'
@@ -152,7 +152,7 @@ const styles = {
     flexDirection: 'row',
     wordWrap: true,
     flexWrap: 'wrap',
-    marginTop: grid.gutter / 2
+    // marginTop: grid.gutter / 2
   } as SurfaceStyle,
 
   username (color: Color) {

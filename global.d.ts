@@ -141,6 +141,11 @@ type SurfaceEvents = {
   onMouseDown?: (e: PIXI.interaction.InteractionEvent) => void;
   onMouseEnter?: (e: PIXI.interaction.InteractionEvent) => void;
   onMouseLeave?: (e: PIXI.interaction.InteractionEvent) => void;
+  onTouchStart?: (e: PIXI.interaction.InteractionEvent) => void;
+  onTouchEnd?: (e: PIXI.interaction.InteractionEvent) => void;
+  onTouchMove?: (e: PIXI.interaction.InteractionEvent) => void;
+  onTouchCancel?: (e: PIXI.interaction.InteractionEvent) => void;
+  onTouchEndOutside?: (e: PIXI.interaction.InteractionEvent) => void;
   onSizeChanged?: (size: Size) => void;
   onBoundsChanged?: (bounds: Bounds) => void;
 };

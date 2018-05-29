@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { Component, createElement } from "react";
-import * as PropTypes from "prop-types";
-import { Scroller } from "scroller";
+import { Component, createElement } from 'react';
+import * as PropTypes from 'prop-types';
+import { Scroller } from 'scroller';
 
 const MAX_CACHED_ITEMS = 100;
 
@@ -15,7 +15,12 @@ interface ListViewProps<T> {
   snapping?: boolean;
   scrollingDeceleration?: number;
   scrollingPenetrationAcceleration?: number;
-  onScroll?: ScrollHandler
+  onScroll?: ScrollHandler;
+}
+
+interface FakeDomEvent {
+  pageX: number;
+  pageY: number;
 }
 
 export default class ListView<T> extends Component<ListViewProps<T>, any> {
@@ -32,77 +37,68 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
   };
 
   scroller: Scroller;
-  private _itemCache: Map<number, T>;
-  private _surfaceElementCache: Map<number, JSX.Element>;
+  private itemCache: Map<number, T>;
+  private surfaceElementCache: Map<number, JSX.Element>;
+  private tempPoint: PIXI.Point;
 
-  constructor(props: any) {
+  constructor (props: any) {
     super(props);
 
-    this._itemCache = new Map();
-    this._surfaceElementCache = new Map();
+    this.itemCache = new Map();
+    this.surfaceElementCache = new Map();
+    this.tempPoint = new PIXI.Point();
   }
 
-  componentDidMount() {
+  componentDidMount () {
     this.createScroller();
     this.updateScrollingDimensions(this.state.bounds);
 
-    setInterval(() => {
+    /*setInterval(() => {
       this.scroller.scrollBy(0, 250, true)
-    }, 500)
+    }, 500)*/
   }
 
-  render() {
-    if (this._itemCache.size > MAX_CACHED_ITEMS) {
-      this._itemCache.clear();
-      this._surfaceElementCache.clear();
+  render () {
+    if (this.itemCache.size > MAX_CACHED_ITEMS) {
+      this.itemCache.clear();
+      this.surfaceElementCache.clear();
     }
 
     const items = this.getVisibleItemIndexes().map((i) => this.renderItem(i));
 
     const rootProps = {
       ...this.props.style,
+      onMouseDown: (e: PIXI.interaction.InteractionEvent) => this.handleMouseDown(e),
+      onMouseUp: (e: PIXI.interaction.InteractionEvent) => this.handleMouseUp(e),
+      onMouseLeave: (e: PIXI.interaction.InteractionEvent) => this.handleMouseOut(e),
+      onMouseMove: (e: PIXI.interaction.InteractionEvent) => this.handleMouseMove(e),
       onBoundsChanged: (bounds: Bounds) => {
-        this.setState({ bounds: bounds })
+        this.setState({ bounds });
         // HACK
         setTimeout(() => this.updateScrollingDimensions(bounds), 0);
       }
-    }
+    };
 
     return (<surface {...rootProps}>{items}</surface>);
-    /*return createElement(
-      "surface",
-      {
-        style: this.props.style,
-        onTouchStart: this.handleTouchStart,
-        onTouchMove: this.handleTouchMove,
-        onTouchEnd: this.handleTouchEnd,
-        onMouseDown: this.handleMouseDown,
-        onMouseUp: this.handleMouseUp,
-        onMouseOut: this.handleMouseOut,
-        onMouseMove: this.handleMouseMove,
-        onTouchCancel: this.handleTouchEnd
-      },
-      items
-    );*/
   }
 
-  renderItem(itemIndex: number) {
+  renderItem (itemIndex: number) {
     const item: T = this.props.itemGetter(itemIndex, this.state.scrollTop);
-    const priorItem = this._itemCache.get(itemIndex);
+    const priorItem = this.itemCache.get(itemIndex);
     const itemHeight: number = this.props.itemHeightGetter();
 
     let surface;
 
     // TODO can't mutate props
-    //surface = this._surfaceElementCache.get(itemIndex);
+    // surface = this.surfaceElementCache.get(itemIndex);
 
     const ty = itemIndex * itemHeight - this.state.scrollTop;
-    //const ty = Math.floor(this.state.scrollTop) % itemHeight;
+    // const ty = Math.floor(this.state.scrollTop) % itemHeight;
 
     surface = (<surface top={0} left={0} translateY={ty} key={itemIndex}>{item}</surface>);
 
-    this._itemCache.set(itemIndex, item);
-    this._surfaceElementCache.set(itemIndex, surface);
+    this.itemCache.set(itemIndex, item);
+    this.surfaceElementCache.set(itemIndex, surface);
 
     /*if (surface.props.style.width !== this.props.style.width) {
       surface.props.width = this.props.style.width;
@@ -113,75 +109,67 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
     }*/
 
     return surface;
-  };
+  }
 
-  // Events
-  // ======
+  pixiEventToFakeDomEvent (e: PIXI.interaction.InteractionEvent): FakeDomEvent {
+    const localPos = e.data.getLocalPosition(e.target, this.tempPoint);
 
-  /*handleTouchStart = e => {
-    if (this.scroller) {
-      this.scroller.doTouchStart(e.touches, e.timeStamp);
-    }
-  };
+    return {
+      pageX: localPos.x,
+      pageY: localPos.y
+    };
+  }
 
-  handleTouchMove = e => {
-    if (this.scroller) {
-      e.preventDefault();
-      this.scroller.doTouchMove(e.touches, e.timeStamp, e.scale);
-    }
-  };
+  handleMouseDown (e: PIXI.interaction.InteractionEvent) {
+    // if (e.button !== 2) return;
 
-  handleTouchEnd = e => {
-    this.handleScrollRelease(e);
-  };
-
-  handleMouseDown = e => {
-    //if (e.button !== 2) return;
+    const domEvent = this.pixiEventToFakeDomEvent(e);
 
     if (this.scroller) {
-      this.scroller.doTouchStart([e], e.timeStamp);
+      this.scroller.doTouchStart([domEvent], e.data.originalEvent.timeStamp);
     }
-  };
+  }
 
-  handleMouseMove = e => {
+  handleMouseMove (e: PIXI.interaction.InteractionEvent) {
     if (this.scroller) {
-      e.preventDefault();
-      this.scroller.doTouchMove([e], e.timeStamp);
+      const domEvent = this.pixiEventToFakeDomEvent(e);
+      e.data.originalEvent.preventDefault();
+      this.scroller.doTouchMove([domEvent], e.data.originalEvent.timeStamp);
     }
-  };
+  }
 
-  handleMouseUp = e => {
-    //if (e.button !== 2) return;
+  handleMouseUp (e: PIXI.interaction.InteractionEvent) {
+    // if (e.button !== 2) return;
 
-    this.handleScrollRelease(e);
-  };
+    this.handleScrollRelease(e.data.originalEvent);
+  }
 
-  handleMouseOut = e => {
-    //if (e.button !== 2) return;
+  handleMouseOut (e: PIXI.interaction.InteractionEvent) {
+    // if (e.button !== 2) return;
 
-    this.handleScrollRelease(e);
-  };
+    this.handleScrollRelease(e.data.originalEvent);
+  }
 
-  handleScrollRelease = e => {
+  handleScrollRelease (e: MouseEvent | TouchEvent) {
     if (this.scroller) {
       this.scroller.doTouchEnd(e.timeStamp);
       if (this.props.snapping) {
         this.updateScrollingDeceleration();
       }
     }
-  };*/
+  }
 
-  handleScroll(left: number, top: number) {
+  handleScroll (left: number, top: number) {
     this.setState({ scrollTop: top });
     if (this.props.onScroll) {
       this.props.onScroll(top);
     }
-  };
+  }
 
   // Scrolling
   // =========
 
-  createScroller() {
+  createScroller () {
     const options = {
       scrollingX: false,
       scrollingY: true,
@@ -190,9 +178,9 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
     };
 
     this.scroller = new Scroller((l: number, t: number) => this.handleScroll(l, t), options);
-  };
+  }
 
-  updateScrollingDimensions(bounds: Bounds) {
+  updateScrollingDimensions (bounds: Bounds) {
     if (!this.scroller || !bounds) {
       return;
     }
@@ -203,9 +191,9 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
     const scrollHeight =
       this.props.numberOfItemsGetter() * this.props.itemHeightGetter();
     this.scroller.setDimensions(width, height, scrollWidth, scrollHeight);
-  };
+  }
 
-  getVisibleItemIndexes() {
+  getVisibleItemIndexes () {
     if (!this.state.bounds) return [];
 
     const itemIndexes = [];
@@ -214,7 +202,7 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
     const scrollTop = this.state.scrollTop;
     let itemScrollTop = 0;
 
-    for (let index = 0; index < itemCount; index++) {
+    for (let index = 0; index < itemCount; index += 1) {
       itemScrollTop = index * itemHeight - scrollTop;
 
       // Item is completely off-screen bottom
@@ -232,9 +220,9 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
     }
 
     return itemIndexes;
-  };
+  }
 
-  updateScrollingDeceleration() {
+  updateScrollingDeceleration () {
     let currVelocity = (this.scroller as any).__decelerationVelocityY;
     const currScrollTop = this.state.scrollTop;
     let targetScrollTop = 0;
@@ -251,7 +239,7 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
     const pageCount = this.props.numberOfItemsGetter();
     let pageScrollTop;
 
-    for (let pageIndex = 0, len = pageCount; pageIndex < len; pageIndex++) {
+    for (let pageIndex = 0, len = pageCount; pageIndex < len; pageIndex += 1) {
       pageScrollTop = pageHeight * pageIndex - estimatedEndScrollTop;
       if (Math.abs(pageScrollTop) < closestZeroDelta) {
         closestZeroDelta = Math.abs(pageScrollTop);
@@ -261,5 +249,5 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
 
     (this.scroller as any).__minDecelerationScrollTop = targetScrollTop;
     (this.scroller as any).__maxDecelerationScrollTop = targetScrollTop;
-  };
+  }
 }
