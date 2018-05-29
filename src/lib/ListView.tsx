@@ -44,7 +44,11 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
 
   componentDidMount() {
     this.createScroller();
-    this.updateScrollingDimensions();
+    this.updateScrollingDimensions(this.state.bounds);
+
+    setInterval(() => {
+      this.scroller.scrollBy(0, 250, true)
+    }, 500)
   }
 
   render() {
@@ -52,15 +56,15 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
       this._itemCache.clear();
       this._surfaceElementCache.clear();
     }
-    console.log("Render");
-    console.log(this.state.bounds);
 
-    const items = this.getVisibleItemIndexes().map(this.renderItem);
+    const items = this.getVisibleItemIndexes().map((i) => this.renderItem(i));
+
     const rootProps = {
       ...this.props.style,
       onBoundsChanged: (bounds: Bounds) => {
-        console.log("Changed");
         this.setState({ bounds: bounds })
+        // HACK
+        setTimeout(() => this.updateScrollingDimensions(bounds), 0);
       }
     }
 
@@ -82,7 +86,7 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
     );*/
   }
 
-  renderItem = (itemIndex: number) => {
+  renderItem(itemIndex: number) {
     const item: T = this.props.itemGetter(itemIndex, this.state.scrollTop);
     const priorItem = this._itemCache.get(itemIndex);
     const itemHeight: number = this.props.itemHeightGetter();
@@ -93,6 +97,7 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
     //surface = this._surfaceElementCache.get(itemIndex);
 
     const ty = itemIndex * itemHeight - this.state.scrollTop;
+    //const ty = Math.floor(this.state.scrollTop) % itemHeight;
 
     surface = (<surface top={0} left={0} translateY={ty} key={itemIndex}>{item}</surface>);
 
@@ -166,7 +171,7 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
     }
   };*/
 
-  handleScroll = (left: number, top: number) => {
+  handleScroll(left: number, top: number) {
     this.setState({ scrollTop: top });
     if (this.props.onScroll) {
       this.props.onScroll(top);
@@ -176,32 +181,32 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
   // Scrolling
   // =========
 
-  createScroller = () => {
+  createScroller() {
     const options = {
       scrollingX: false,
       scrollingY: true,
       decelerationRate: this.props.scrollingDeceleration,
       penetrationAcceleration: this.props.scrollingPenetrationAcceleration
     };
-    this.scroller = new Scroller(this.handleScroll, options);
+
+    this.scroller = new Scroller((l: number, t: number) => this.handleScroll(l, t), options);
   };
 
-  updateScrollingDimensions = () => {
-    if (!this.state.bounds) return;
+  updateScrollingDimensions(bounds: Bounds) {
+    if (!this.scroller || !bounds) {
+      return;
+    }
 
-    const width = this.state.bounds.width;
-    const height = this.state.bounds.height;
+    const width = bounds.width;
+    const height = bounds.height;
     const scrollWidth = width;
     const scrollHeight =
       this.props.numberOfItemsGetter() * this.props.itemHeightGetter();
     this.scroller.setDimensions(width, height, scrollWidth, scrollHeight);
   };
 
-  getVisibleItemIndexes = () => {
-    console.log("VIS1");
-    console.log(this.state.bounds);
+  getVisibleItemIndexes() {
     if (!this.state.bounds) return [];
-    console.log("VIS2");
 
     const itemIndexes = [];
     const itemHeight = this.props.itemHeightGetter();
@@ -218,7 +223,7 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
       }
 
       // Item is completely off-screen top
-      if (itemScrollTop <= -this.state.bounds.height) {
+      if (itemScrollTop <= -itemHeight) {
         continue;
       }
 
@@ -229,7 +234,7 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
     return itemIndexes;
   };
 
-  updateScrollingDeceleration = () => {
+  updateScrollingDeceleration() {
     let currVelocity = (this.scroller as any).__decelerationVelocityY;
     const currScrollTop = this.state.scrollTop;
     let targetScrollTop = 0;

@@ -69,9 +69,9 @@ export class Chatbox extends React.Component<{
     return (
       <ListView
         style={style}
-        numberOfItemsGetter={ () => 100 }
+        numberOfItemsGetter={ () => 1000 }
         itemGetter={(idx, top) => this.itemGetter(idx, top)}
-        itemHeightGetter={ () => 30 }>
+        itemHeightGetter={ () => 31 }>
       </ListView>
     );
 
@@ -144,7 +144,6 @@ const styles = {
     ...commonStyles.blueBox,
     padding: grid.gutter,
     borderRadius: grid.gutter / 2,
-    justifyContent: 'flex-end',
     flexGrow: 1,
     overflow: 'hidden'
   } as SurfaceStyle,
