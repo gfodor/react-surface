@@ -145,6 +145,7 @@ const styles = {
     padding: grid.gutter,
     borderRadius: grid.gutter / 2,
     justifyContent: 'flex-end',
+    flexGrow: 1,
     overflow: 'hidden'
   } as SurfaceStyle,
 

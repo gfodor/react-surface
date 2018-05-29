@@ -27,13 +27,13 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
   };
 
   state = {
-    scrollTop: 0
+    scrollTop: 0,
+    bounds: (null as Bounds)
   };
 
   scroller: Scroller;
   private _itemCache: Map<number, T>;
   private _surfaceElementCache: Map<number, JSX.Element>;
-  private _bounds: Bounds;
 
   constructor(props: any) {
     super(props);
@@ -52,13 +52,15 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
       this._itemCache.clear();
       this._surfaceElementCache.clear();
     }
+    console.log("Render");
+    console.log(this.state.bounds);
 
     const items = this.getVisibleItemIndexes().map(this.renderItem);
     const rootProps = {
       ...this.props.style,
       onBoundsChanged: (bounds: Bounds) => {
-        console.log("Bounds changed");
-        this._bounds = bounds;
+        console.log("Changed");
+        this.setState({ bounds: bounds })
       }
     }
 
@@ -185,10 +187,10 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
   };
 
   updateScrollingDimensions = () => {
-    if (!this._bounds) return;
+    if (!this.state.bounds) return;
 
-    const width = this._bounds.width;
-    const height = this._bounds.height;
+    const width = this.state.bounds.width;
+    const height = this.state.bounds.height;
     const scrollWidth = width;
     const scrollHeight =
       this.props.numberOfItemsGetter() * this.props.itemHeightGetter();
@@ -196,7 +198,10 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
   };
 
   getVisibleItemIndexes = () => {
-    if (!this._bounds) return [];
+    console.log("VIS1");
+    console.log(this.state.bounds);
+    if (!this.state.bounds) return [];
+    console.log("VIS2");
 
     const itemIndexes = [];
     const itemHeight = this.props.itemHeightGetter();
@@ -208,12 +213,12 @@ export default class ListView<T> extends Component<ListViewProps<T>, any> {
       itemScrollTop = index * itemHeight - scrollTop;
 
       // Item is completely off-screen bottom
-      if (itemScrollTop >= this._bounds.height) {
+      if (itemScrollTop >= this.state.bounds.height) {
         continue;
       }
 
       // Item is completely off-screen top
-      if (itemScrollTop <= -this._bounds.height) {
+      if (itemScrollTop <= -this.state.bounds.height) {
         continue;
       }
 
