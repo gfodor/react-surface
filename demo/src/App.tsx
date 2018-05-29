@@ -42,6 +42,10 @@ export class App extends React.Component<{state: AppState}> {
 
   componentWillMount () {
     this.behaviorDisposers = this.props.state.initializeBehavior();
+
+    setInterval(() => {
+      this.props.state.chatbox.generateMessage();
+    }, 1000);
   }
 
   componentWillUnmount () {
@@ -58,6 +62,10 @@ export class App extends React.Component<{state: AppState}> {
     return (
       <surface {...styles.app}>
         <Overlay/>
+      </surface>);
+    /*return (
+      <surface {...styles.app}>
+        <Overlay/>
         {state.options.enableDevTools && (
           <React.Fragment>
             <DevToolsMenu state={state}/>
@@ -65,7 +73,7 @@ export class App extends React.Component<{state: AppState}> {
           </React.Fragment>
         )}
       </surface>
-    );
+    );*/
   }
 }
 

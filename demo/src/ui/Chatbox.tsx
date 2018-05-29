@@ -3,17 +3,27 @@ import {commonStyles, grid} from './UISettings';
 import {observer} from 'mobx-react/custom';
 import {computed} from 'mobx';
 import {ChatMessage, ChatStore} from '../state/ChatStore';
+import ListView from '../../../src/lib/ListView';
 import {Link} from './Link';
 import * as Color from 'color';
 import {RainbowText} from './RainbowText';
+import * as lorem from 'lorem-ipsum';
 
 @observer
 export class Chatbox extends React.Component<{
   chatStore: ChatStore,
   style: SurfaceStyle
 }> {
+  items: JSX.Element[];
+
+  constructor(props: any) {
+    super(props);
+
+    this.items = [];
+  }
+
   @computed get entries () {
-    const max = 35; // Magic number
+    const max = 100; // Magic number
     const sorted = this.props.chatStore.messages.slice().sort(ChatMessage.compare);
     const slice = sorted.slice(sorted.length > max ? sorted.length - max : 0);
 
@@ -23,7 +33,7 @@ export class Chatbox extends React.Component<{
     const memory: {[key: string]: boolean} = {};
     for (const entry of entries) {
       const msg = entry.message;
-      if (!memory[msg.username] && msg.badges && msg.badges.hasOwnProperty('subscriber')) {
+      if (!memory[msg.username] && msg.badges && msg.badges.hasOwnProperty('subcriber')) {
         memory[msg.username] = true;
         entry.rainbow = true;
       }
@@ -33,6 +43,23 @@ export class Chatbox extends React.Component<{
     return entries;
   }
 
+  itemGetter(idx: number, scrollTop: number) {
+    let item = this.items[idx];
+
+    if (!item) {
+      const style = styles.message;
+
+      item = (
+        <surface { ...style }>
+          { lorem({ count: 1 }) }
+        </surface>);
+
+      this.items[idx] = item;
+    }
+
+    return item;
+  }
+
   render () {
     const style = {
       ...styles.chatbox,
@@ -40,6 +67,15 @@ export class Chatbox extends React.Component<{
     };
 
     return (
+      <ListView
+        style={style}
+        numberOfItemsGetter={ () => 100 }
+        itemGetter={(idx, top) => this.itemGetter(idx, top)}
+        itemHeightGetter={ () => 30 }>
+      </ListView>
+    );
+
+    /*return (
       <surface {...style}>
         {this.entries.map((entry) =>
           <ChatboxMessage
@@ -50,7 +86,7 @@ export class Chatbox extends React.Component<{
           />
         )}
       </surface>
-    );
+    );*/
   }
 }
 

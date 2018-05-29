@@ -194,3 +194,5 @@ type YogaNode = {
   setMeasureFunc (fn: () => any): void;
   markDirty (): void;
 };
+
+declare module 'scroller'

@@ -131,7 +131,8 @@ export class Surface {
     const measurement = TextMetrics.measureText(
       this.pixiText!.text, new TextStyle({
         ...this.cascadedTextStyle,
-        wordWrapWidth: width
+        wordWrapWidth: width,
+        wordWrap: true
       })
     );
 
@@ -350,7 +351,7 @@ export class Surface {
     const changes = this.pollBoundsChanges();
 
     if (this.pixiText) {
-      Object.assign(this.pixiText.style, this.cascadedTextStyle, {wordWrapWidth: layout.width});
+      Object.assign(this.pixiText.style, this.cascadedTextStyle, {wordWrapWidth: layout.width, wordWrap: true});
       if (changes.size) { // TODO check if
         this.yogaNode.markDirty();
       }
@@ -532,11 +533,16 @@ export class SurfaceRoot extends Surface {
   surfacesWithTweens: Map<number, Surface>;
 
   constructor (target: HTMLElement, store: SurfaceStore) {
+    const scale = window.devicePixelRatio;
+
     const app = new Application(target.clientWidth, target.clientHeight, {
       transparent: true,
-      antialias: true
+      antialias: true,
+      autoResize: true
     });
 
+    app.view.style.width = target.clientWidth + "px"
+    app.view.style.height = target.clientHeight + "px"
     target.appendChild(app.view);
 
     super(undefined, 'root', app.stage);

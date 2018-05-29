@@ -17,6 +17,19 @@ export class Overlay extends AppStateComponent {
         {...styles.streamOverlay}
         onSizeChanged={(size) => this.appState.toasties.updateOverlaySize(size)}
       >
+        <surface flexGrow={1} flexDirection="row">
+            <Chatbox
+              style={styles.chatbox(this.appState.toasties.loggedToasties.length)}
+              chatStore={this.appState.chatbox}
+            />
+        </surface>
+      </surface>
+    );
+    /*return (
+      <surface
+        {...styles.streamOverlay}
+        onSizeChanged={(size) => this.appState.toasties.updateOverlaySize(size)}
+      >
         <surface maskedBy={1} {...styles.background}/>
 
         <surface {...styles.header}>
@@ -42,7 +55,7 @@ export class Overlay extends AppStateComponent {
           </surface>
         </surface>
       </surface>
-    );
+    );*/
   }
 }
 
