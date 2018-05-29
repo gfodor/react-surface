@@ -5,6 +5,8 @@ declare module JSX {
   }
 }
 
+declare module 'pixi-viewport';
+
 type CSSProps = React.CSSProperties;
 type Percentage = string; // TODO can typescript enforce percentage strings?
 type SurfaceTweenInstruction = any;

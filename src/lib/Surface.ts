@@ -10,6 +10,7 @@ import {SurfaceBackground, SurfaceBorder, SurfaceImage} from './SurfaceEffects';
 import {SurfaceStore} from './SurfaceStore';
 import {DropShadowFilter} from '@pixi/filter-drop-shadow';
 import {commonColors} from './constants';
+import Viewport from 'pixi-viewport';
 
 const yoga = require('yoga-layout');
 
@@ -55,7 +56,7 @@ export class Surface {
       this.pixiText = new PIXI.Text();
       this.pixiContainer = this.pixiText;
     } else {
-      this.pixiContainer = container || new Container();
+      this.pixiContainer = container || new Viewport({ hitAreaFullScreen: false });
       this.childContainer = new Container();
       this.childContainer.name = 'children';
       this.pixiContainer.addChild(this.childContainer);
