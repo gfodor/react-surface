@@ -1,17 +1,29 @@
-import {Application, Container, Graphics, Text, Sprite,
-  TextMetrics, TextStyle, DisplayObject, interaction} from 'pixi.js';
-import {diffEventProps, pixiEvents, surfaceEvents} from './events';
-import {setYogaValue} from './YogaHelpers';
-import {Tween} from './tween/Tween';
-import TweenInstruction from './tween/TweenInstruction';
-import {uniq} from 'lodash';
-import {definedOr, GettableProps, TweenableProps} from './helpers';
-import {SurfaceBackground, SurfaceBorder, SurfaceImage} from './SurfaceEffects';
-import {SurfaceStore} from './SurfaceStore';
-import {DropShadowFilter} from '@pixi/filter-drop-shadow';
-import {commonColors} from './constants';
-
-const yoga = require('yoga-layout');
+import { DropShadowFilter } from "@pixi/filter-drop-shadow";
+import { uniq } from "lodash";
+import {
+  Application,
+  Container,
+  DisplayObject,
+  Graphics,
+  interaction,
+  Sprite,
+  Text,
+  TextMetrics,
+  TextStyle
+} from "pixi.js";
+import yogaLayout from "yoga-layout";
+import { commonColors } from "./constants";
+import { diffEventProps, pixiEvents, surfaceEvents } from "./events";
+import { definedOr, GettableProps, TweenableProps } from "./helpers";
+import {
+  SurfaceBackground,
+  SurfaceBorder,
+  SurfaceImage
+} from "./SurfaceEffects";
+import { SurfaceStore } from "./SurfaceStore";
+import { Tween } from "./tween/Tween";
+import TweenInstruction from "./tween/TweenInstruction";
+import { setYogaValue } from "./YogaHelpers";
 
 const defaultTextStyle = new PIXI.TextStyle({});
 
@@ -22,7 +34,7 @@ export class Surface {
   private surfaceMaskId: SurfaceMaskId;
 
   public pixiContainer: Container;
-  private globalPosition: Point = {x: 0, y: 0};
+  private globalPosition: Point = { x: 0, y: 0 };
   private lastFrameBounds: Bounds;
   private dropShadowFilter: DropShadowFilter;
   private backgroundColor?: SurfaceBackground;
@@ -42,22 +54,18 @@ export class Surface {
   public textValue?: string;
   public root: SurfaceRoot;
 
-  constructor (
-    root?: SurfaceRoot,
-    type?: string,
-    container?: Container
-  ) {
+  constructor(root?: SurfaceRoot, type?: string, container?: Container) {
     this.root = root!;
-    this.yogaNode = yoga.Node.create();
+    this.yogaNode = yogaLayout.Node.create();
 
-    if (type === 'text') {
+    if (type === "text") {
       this.yogaNode.setMeasureFunc(this.measureText.bind(this));
       this.pixiText = new PIXI.Text();
       this.pixiContainer = this.pixiText;
     } else {
       this.pixiContainer = container || new Container();
       this.childContainer = new Container();
-      this.childContainer.name = 'children';
+      this.childContainer.name = "children";
       this.pixiContainer.addChild(this.childContainer);
     }
 
@@ -65,7 +73,7 @@ export class Surface {
     this.lastFrameBounds = this.getGlobalBounds();
   }
 
-  destroy () {
+  public destroy() {
     if (this.parentNode) {
       this.parentNode.removeChild(this);
     }
@@ -75,9 +83,7 @@ export class Surface {
     }
 
     while (this.yogaNode.getChildCount()) {
-      this.yogaNode.removeChild(
-        this.yogaNode.getChild(0)
-      );
+      this.yogaNode.removeChild(this.yogaNode.getChild(0));
     }
 
     this.yogaNode.reset();
@@ -86,35 +92,36 @@ export class Surface {
     this.root!.surfacesWithTweens.delete(this.id);
   }
 
-  get children () {
+  get children() {
     return Object.freeze(this.mutableChildren.slice());
   }
 
-  get hostInstance () {
+  get hostInstance() {
     return this.pixiContainer;
   }
 
-  get cascadedTextStyle (): PIXI.TextStyleOptions {
+  get cascadedTextStyle(): PIXI.TextStyleOptions {
     const textStyle = {};
     for (const key in this.textStyleGetters) {
       const value = (this.textStyleGetters as any)[key]();
-      (textStyle as any)[key] = value !== undefined ? value : (defaultTextStyle as any)[key];
+      (textStyle as any)[key] =
+        value !== undefined ? value : (defaultTextStyle as any)[key];
     }
     return textStyle;
   }
 
-  get tweenableProps (): TweenableProps<SurfaceProps> {
+  get tweenableProps(): TweenableProps<SurfaceProps> {
     return new Proxy(this.tweens, {
       get: (target, key) => {
-        return this.tweens.hasOwnProperty(key) ?
-          (this.tweens as any)[key] :
-            {value: (this.props as any)[key]};
+        return this.tweens.hasOwnProperty(key)
+          ? (this.tweens as any)[key]
+          : { value: (this.props as any)[key] };
       }
     });
   }
 
-  getGlobalBounds () {
-    let {width, height} = this.yogaNode.getComputedLayout();
+  public getGlobalBounds() {
+    let { width, height } = this.yogaNode.getComputedLayout();
     width = width || 0;
     height = height || 0;
     return {
@@ -127,9 +134,10 @@ export class Surface {
     };
   }
 
-  measureText (width: number) {
+  public measureText(width: number) {
     const measurement = TextMetrics.measureText(
-      this.pixiText!.text, new TextStyle({
+      this.pixiText!.text,
+      new TextStyle({
         ...this.cascadedTextStyle,
         wordWrapWidth: width,
         wordWrap: true
@@ -142,9 +150,9 @@ export class Surface {
     };
   }
 
-  updateProps (deltaProps: SurfaceProps = {}) {
+  public updateProps(deltaProps: SurfaceProps = {}) {
     const prevProps = this.props;
-    this.props = Object.assign({}, this.props, deltaProps);
+    this.props = { ...this.props, ...deltaProps };
     this.updateMount();
     this.updateEvents(prevProps, this.props);
     this.updateTweenableProps(prevProps, this.props);
@@ -152,8 +160,8 @@ export class Surface {
     this.updateYoga();
   }
 
-  updateEvents (prevProps: SurfaceProps, nextProps: SurfaceProps) {
-    const {removed, added, changed} = diffEventProps(prevProps, nextProps);
+  public updateEvents(prevProps: SurfaceProps, nextProps: SurfaceProps) {
+    const { removed, added, changed } = diffEventProps(prevProps, nextProps);
 
     for (const name in removed) {
       this.removeEventListener(name, removed[name]);
@@ -169,11 +177,15 @@ export class Surface {
       this.addEventListener(name, added[name]);
     }
 
-    this.pixiContainer.interactive = !!this.pixiContainer.eventNames()
-      .find((name) => pixiEvents[name].isInteractive);
+    this.pixiContainer.interactive = !!this.pixiContainer
+      .eventNames()
+      .find(name => pixiEvents[name].isInteractive);
   }
 
-  updateTweenableProps (prevProps: SurfaceProps, nextProps: SurfaceProps) {
+  public updateTweenableProps(
+    prevProps: SurfaceProps,
+    nextProps: SurfaceProps
+  ) {
     const keys = uniq(Object.keys(prevProps).concat(Object.keys(nextProps)));
 
     for (const key of keys) {
@@ -214,7 +226,7 @@ export class Surface {
     }
   }
 
-  createTextStyleGetters (): GettableProps<PIXI.TextStyleOptions> {
+  public createTextStyleGetters(): GettableProps<PIXI.TextStyleOptions> {
     return {
       wordWrap: () => this.props.wordWrap,
       align: () => this.props.textAlign,
@@ -226,12 +238,14 @@ export class Surface {
       fill: () => {
         const color = this.tweenableProps.color.value;
         return color && color.rgbNumber();
-      },
+      }
     };
   }
 
-  cascadeTextStyleGetters () {
-    const parentGetters = this.parentNode ? this.parentNode.textStyleGetters : {};
+  public cascadeTextStyleGetters() {
+    const parentGetters = this.parentNode
+      ? this.parentNode.textStyleGetters
+      : {};
     this.textStyleGetters = this.createTextStyleGetters();
     for (const key in this.textStyleGetters) {
       const getter = (this.textStyleGetters as any)[key];
@@ -247,8 +261,8 @@ export class Surface {
     }
   }
 
-  cascadeGlobalPosition (x: number = 0, y: number = 0) {
-    const {left, top} = this.yogaNode.getComputedLayout();
+  public cascadeGlobalPosition(x: number = 0, y: number = 0) {
+    const { left, top } = this.yogaNode.getComputedLayout();
     this.globalPosition = {
       x: x + left,
       y: y + top
@@ -259,19 +273,19 @@ export class Surface {
     }
   }
 
-  updateYoga () {
+  public updateYoga() {
     for (const key in this.props) {
       const value = ((this.tweenableProps as any)[key] as Tween<any>).value;
       setYogaValue(this.yogaNode, key, value);
     }
   }
 
-  updateMount () {
+  public updateMount() {
     mount(
       this.pixiContainer,
       this.props.backgroundColor !== undefined,
       () => this.backgroundColor,
-      (value) => this.backgroundColor = value,
+      value => (this.backgroundColor = value),
       () => new SurfaceBackground(),
       () => this.backgroundImage || this.border || this.childContainer
     );
@@ -280,16 +294,16 @@ export class Surface {
       this.pixiContainer,
       this.props.backgroundImage !== undefined,
       () => this.backgroundImage,
-      (value) => this.backgroundImage = value,
+      value => (this.backgroundImage = value),
       () => new SurfaceImage(),
       () => this.border || this.childContainer
     );
 
     mount(
       this.pixiContainer,
-      SurfaceBorder.getWidths(this.tweenableProps).find((w) => w > 0),
+      SurfaceBorder.getWidths(this.tweenableProps).find(w => w > 0),
       () => this.border,
-      (value) => this.border = value,
+      value => (this.border = value),
       () => new SurfaceBorder(),
       () => this.childContainer
     );
@@ -302,18 +316,20 @@ export class Surface {
       delete this.dropShadowFilter;
     }
 
-    const needsMask = this.props.overflow === 'hidden' ||
+    const needsMask =
+      this.props.overflow === "hidden" ||
       this.props.backgroundImage !== undefined ||
-      (this.props.backgroundColor !== undefined && this.props.borderRadius !== undefined);
+      (this.props.backgroundColor !== undefined &&
+        this.props.borderRadius !== undefined);
 
     mount(
       this.pixiContainer,
       needsMask,
       () => this.mask,
-      (value) => this.mask = value,
+      value => (this.mask = value),
       () => {
         const mask = new SurfaceBorder();
-        mask.name = 'mask';
+        mask.name = "mask";
         return mask;
       },
       () => this.childContainer
@@ -327,7 +343,7 @@ export class Surface {
     }
   }
 
-  updatePixi () {
+  public updatePixi() {
     const layout = this.yogaNode.getComputedLayout();
 
     this.pixiContainer.rotation = this.tweenableProps.rotation.value || 0;
@@ -344,15 +360,23 @@ export class Surface {
       definedOr(this.tweenableProps.pivotY.value, layout.height / 2)
     );
     this.pixiContainer.position.set(
-      layout.left + definedOr(this.tweenableProps.translateX.value, 0) + this.pixiContainer.pivot.x,
-      layout.top + definedOr(this.tweenableProps.translateY.value, 0) + this.pixiContainer.pivot.y
+      layout.left +
+        definedOr(this.tweenableProps.translateX.value, 0) +
+        this.pixiContainer.pivot.x,
+      layout.top +
+        definedOr(this.tweenableProps.translateY.value, 0) +
+        this.pixiContainer.pivot.y
     );
 
     const changes = this.pollBoundsChanges();
 
     if (this.pixiText) {
-      Object.assign(this.pixiText.style, this.cascadedTextStyle, {wordWrapWidth: layout.width, wordWrap: true});
-      if (changes.size) { // TODO check if
+      Object.assign(this.pixiText.style, this.cascadedTextStyle, {
+        wordWrapWidth: layout.width,
+        wordWrap: true
+      });
+      if (changes.size) {
+        // TODO check if
         this.yogaNode.markDirty();
       }
     }
@@ -369,7 +393,7 @@ export class Surface {
 
       // TODO centralized loader
       if (this.backgroundImage.texture.baseTexture.isLoading) {
-        this.backgroundImage.texture.baseTexture.on('loaded', () => {
+        this.backgroundImage.texture.baseTexture.on("loaded", () => {
           if (!this.isDestroyed) {
             this.updatePixi();
           }
@@ -386,25 +410,43 @@ export class Surface {
     this.pixiContainer.alpha = definedOr(this.tweenableProps.opacity.value, 1);
 
     if (this.dropShadowFilter) {
-      this.dropShadowFilter.rotation = definedOr(this.tweenableProps.dropShadowRotation.value, 0);
-      this.dropShadowFilter.alpha = definedOr(this.tweenableProps.dropShadowAlpha.value, 1) * this.pixiContainer.alpha;
-      this.dropShadowFilter.blur = definedOr(this.tweenableProps.dropShadowSize.value, 0);
-      this.dropShadowFilter.color = definedOr(this.tweenableProps.dropShadowColor.value, commonColors.transparent).rgbNumber();
-      this.dropShadowFilter.distance = definedOr(this.tweenableProps.dropShadowDistance.value, 0);
+      this.dropShadowFilter.rotation = definedOr(
+        this.tweenableProps.dropShadowRotation.value,
+        0
+      );
+      this.dropShadowFilter.alpha =
+        definedOr(this.tweenableProps.dropShadowAlpha.value, 1) *
+        this.pixiContainer.alpha;
+      this.dropShadowFilter.blur = definedOr(
+        this.tweenableProps.dropShadowSize.value,
+        0
+      );
+      this.dropShadowFilter.color = definedOr(
+        this.tweenableProps.dropShadowColor.value,
+        commonColors.transparent
+      ).rgbNumber();
+      this.dropShadowFilter.distance = definedOr(
+        this.tweenableProps.dropShadowDistance.value,
+        0
+      );
     }
   }
 
-  pollBoundsChanges () {
+  public pollBoundsChanges() {
     const bounds = this.getGlobalBounds();
 
-    const sizeChanged = bounds.width !== this.lastFrameBounds.width || bounds.height !== this.lastFrameBounds.height;
-    const positionChanged = bounds.left !== this.lastFrameBounds.left || bounds.top !== this.lastFrameBounds.top;
+    const sizeChanged =
+      bounds.width !== this.lastFrameBounds.width ||
+      bounds.height !== this.lastFrameBounds.height;
+    const positionChanged =
+      bounds.left !== this.lastFrameBounds.left ||
+      bounds.top !== this.lastFrameBounds.top;
 
     if (sizeChanged) {
-      this.emitEvent('onBoundsChanged', bounds);
-      this.emitEvent('onSizeChanged', bounds);
+      this.emitEvent("onBoundsChanged", bounds);
+      this.emitEvent("onSizeChanged", bounds);
     } else if (positionChanged) {
-      this.emitEvent('onBoundsChanged', bounds);
+      this.emitEvent("onBoundsChanged", bounds);
     }
 
     this.lastFrameBounds = bounds;
@@ -415,7 +457,7 @@ export class Surface {
     };
   }
 
-  updateMasks (layout: Size) {
+  public updateMasks(layout: Size) {
     if (this.mask) {
       this.mask.update(layout, this.tweenableProps);
     }
@@ -427,7 +469,8 @@ export class Surface {
       const maskBounds = surfaceMask.getGlobalBounds();
       const surfaceMaskBoundsHash = JSON.stringify([targetBounds, maskBounds]);
 
-      const didBoundsChange = surfaceMaskBoundsHash !== this.surfaceMaskBoundsHash;
+      const didBoundsChange =
+        surfaceMaskBoundsHash !== this.surfaceMaskBoundsHash;
       this.surfaceMaskBoundsHash = surfaceMaskBoundsHash;
       if (!this.inverseMask || didBoundsChange) {
         if (this.inverseMask) {
@@ -443,19 +486,21 @@ export class Surface {
         this.pixiContainer.removeChild(this.inverseMask);
         delete this.inverseMask;
       }
-      this.pixiContainer.mask = (this.props.overflow === 'hidden' ? this.mask : undefined) as any;
+      this.pixiContainer.mask = (this.props.overflow === "hidden"
+        ? this.mask
+        : undefined) as any;
     }
 
     if (this.props.mask !== undefined) {
       this.root.surfaceMasks.delete(this.surfaceMaskId);
-      this.root.surfaceMasks.set(this.surfaceMaskId = this.props.mask, this);
+      this.root.surfaceMasks.set((this.surfaceMaskId = this.props.mask), this);
     } else if (this.surfaceMaskId) {
       this.root.surfaceMasks.delete(this.surfaceMaskId);
       delete this.surfaceMaskId;
     }
   }
 
-  appendChild (child: Surface) {
+  public appendChild(child: Surface) {
     if (!child) {
       return;
     }
@@ -470,7 +515,7 @@ export class Surface {
     child.cascadeTextStyleGetters();
   }
 
-  insertBefore (child: Surface, beforeChild: Surface) {
+  public insertBefore(child: Surface, beforeChild: Surface) {
     if (!child) {
       return;
     }
@@ -487,13 +532,15 @@ export class Surface {
     child.cascadeTextStyleGetters();
   }
 
-  removeChild (child: Surface) {
+  public removeChild(child: Surface) {
     if (!child) {
       return;
     }
 
     if (child.parentNode !== this) {
-      throw new Error('Cannot remove child. Argument is not a child of this surface');
+      throw new Error(
+        "Cannot remove child. Argument is not a child of this surface"
+      );
     }
 
     this.yogaNode.removeChild(child.yogaNode);
@@ -505,19 +552,25 @@ export class Surface {
     child.parentNode = undefined;
   }
 
-  protected addEventListener (name: string, handler: (e: interaction.InteractionEvent) => any) {
+  protected addEventListener(
+    name: string,
+    handler: (e: interaction.InteractionEvent) => any
+  ) {
     for (const pixiName of surfaceEvents[name].pixiNames) {
       this.pixiContainer.addListener(pixiName as any, handler);
     }
   }
 
-  protected removeEventListener (name: string, handler: (e: interaction.InteractionEvent) => any) {
+  protected removeEventListener(
+    name: string,
+    handler: (e: interaction.InteractionEvent) => any
+  ) {
     for (const pixiName of surfaceEvents[name].pixiNames) {
       this.pixiContainer.removeListener(pixiName as any, handler);
     }
   }
 
-  emitEvent (name: string, ...args: any[]) {
+  public emitEvent(name: string, ...args: any[]) {
     for (const pixiName of surfaceEvents[name].pixiNames) {
       this.pixiContainer.emit(pixiName, ...args);
     }
@@ -530,9 +583,9 @@ export class SurfaceRoot extends Surface {
   private target: HTMLElement;
   private store: SurfaceStore;
 
-  surfacesWithTweens: Map<number, Surface>;
+  public surfacesWithTweens: Map<number, Surface>;
 
-  constructor (target: HTMLElement, store: SurfaceStore) {
+  constructor(target: HTMLElement, store: SurfaceStore) {
     const scale = window.devicePixelRatio;
 
     const app = new Application(target.clientWidth, target.clientHeight, {
@@ -541,11 +594,11 @@ export class SurfaceRoot extends Surface {
       autoResize: true
     });
 
-    app.view.style.width = target.clientWidth + "px"
-    app.view.style.height = target.clientHeight + "px"
+    app.view.style.width = target.clientWidth + "px";
+    app.view.style.height = target.clientHeight + "px";
     target.appendChild(app.view);
 
-    super(undefined, 'root', app.stage);
+    super(undefined, "root", app.stage);
 
     this.root = this;
     this.store = store;
@@ -558,24 +611,24 @@ export class SurfaceRoot extends Surface {
     this.updateBounds();
 
     if (typeof window !== undefined) {
-      window.addEventListener('resize', this.updateBounds.bind(this));
+      window.addEventListener("resize", this.updateBounds.bind(this));
     }
   }
 
-  destroy () {
+  public destroy() {
     super.destroy();
     this.app.destroy(true);
   }
 
-  afterCommit () {
+  public afterCommit() {
     this.applyLayout();
   }
 
-  private applyLayout () {
+  private applyLayout() {
     this.yogaNode.calculateLayout(
       this.app.view.width,
       this.app.view.height,
-      yoga.DIRECTION_LTR
+      yogaLayout.DIRECTION_LTR
     );
 
     this.cascadeGlobalPosition();
@@ -588,7 +641,7 @@ export class SurfaceRoot extends Surface {
     }
   }
 
-  private updateTweens () {
+  private updateTweens() {
     const activeTweens = Tween.update();
     this.store.updateTweenCount(activeTweens.length);
 
@@ -606,16 +659,13 @@ export class SurfaceRoot extends Surface {
     }
   }
 
-  updateBounds () {
-    this.app.renderer.resize(
-      this.target.clientWidth,
-      this.target.clientHeight
-    );
+  public updateBounds() {
+    this.app.renderer.resize(this.target.clientWidth, this.target.clientHeight);
     this.applyLayout();
   }
 }
 
-function mount <T extends DisplayObject> (
+function mount<T extends DisplayObject>(
   container: Container,
   shouldBeMounted: boolean,
   getter: () => T | undefined,
@@ -638,7 +688,7 @@ function mount <T extends DisplayObject> (
   }
 }
 
-function generateInverseBoxMask (target: Bounds, mask: Bounds) {
+function generateInverseBoxMask(target: Bounds, mask: Bounds) {
   const inverse = new Graphics();
 
   const top = mask.top - target.top;
@@ -648,10 +698,11 @@ function generateInverseBoxMask (target: Bounds, mask: Bounds) {
 
   const c = commonColors.opaque;
   SurfaceBorder.prototype.drawSquare.call(
-    inverse, target,
+    inverse,
+    target,
     [top, right, bottom, left],
     [c, c, c, c]
   );
-  
+
   return new Sprite(inverse.generateCanvasTexture());
 }

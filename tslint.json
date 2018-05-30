@@ -1,5 +1,5 @@
 {
-  "extends": ["tslint-config-airbnb"],
+  "extends": ["tslint-config-airbnb", "tslint-config-prettier"],
   "rules": {
     "object-curly-spacing": false,
     "trailing-comma": false,
@@ -10,9 +10,9 @@
     "no-var-self": false,
 
     "no-unused-variable": [true, {"ignore-pattern": "React"}],
-    "ter-arrow-parens": [true, "always"],
+    "ter-arrow-parens": [false, "always"],
     "no-parameter-reassignment": false,
-    "space-before-function-paren": [true, "always"],
+    "space-before-function-paren": [false, "always"],
     "object-literal-key-quotes": false,
 
     "strict-boolean-expressions": false,
