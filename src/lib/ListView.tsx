@@ -3,6 +3,7 @@ import * as React from "react";
 import { Scroller } from "scroller";
 
 const MAX_CACHED_ITEMS = 100;
+const Surface = "surface";
 
 export type ScrollHandler = (scrollTop: number) => void;
 
@@ -14,6 +15,10 @@ interface IListViewProps<T> {
   scrollingDeceleration?: number;
   scrollingPenetrationAcceleration?: number;
   onScroll?: ScrollHandler;
+}
+
+interface IItemSurfaceProps extends SurfaceProps {
+  key: number;
 }
 
 interface IFakeDomEvent {
@@ -38,17 +43,16 @@ export default class ListView<T> extends React.Component<
   };
 
   public scroller: Scroller;
-  private itemCache: Map<number, T>;
   private itemHeightCache: Map<number, number>;
-  private surfaceElementCache: Map<number, JSX.Element>;
+  private surfaceElementPropCache: Map<number, IItemSurfaceProps>;
+  private rootProps: SurfaceProps;
   private tempPoint: PIXI.Point;
 
   constructor(props: any) {
     super(props);
 
-    this.itemCache = new Map();
     this.itemHeightCache = new Map();
-    this.surfaceElementCache = new Map();
+    this.surfaceElementPropCache = new Map();
     this.tempPoint = new PIXI.Point();
   }
 
@@ -62,9 +66,8 @@ export default class ListView<T> extends React.Component<
   }
 
   public render() {
-    if (this.itemCache.size > MAX_CACHED_ITEMS) {
-      this.itemCache.clear();
-      this.surfaceElementCache.clear();
+    if (this.surfaceElementPropCache.size > MAX_CACHED_ITEMS) {
+      this.surfaceElementPropCache.clear();
     }
 
     const indexes = this.getVisibleItemIndexes();
@@ -76,39 +79,33 @@ export default class ListView<T> extends React.Component<
     }
 
     const ty = -(this.state.scrollTop - totalScrolled);
-    console.log(
-      `totalScrolled: ${totalScrolled} ty: ${ty} first ${indexes[0]}`
-    );
-
-    // TODO can't mutate props
-    // surface = this.surfaceElementCache.get(itemIndex);
-
-    // const ty = itemIndex * itemHeight * 2 - this.state.scrollTop;
-    // const ty = Math.floor(this.state.scrollTop) % itemHeight;
     const items = indexes.map(i => this.renderItem(i, ty));
 
-    const rootProps = {
-      ...this.props.style,
-      onBoundsChanged: (bounds: Bounds) => {
-        this.setState({ bounds });
-        // HACK
-        setTimeout(() => this.updateScrollingDimensions(bounds), 0);
-      },
-      onMouseDown: (e: PIXI.interaction.InteractionEvent) =>
-        this.handleMouseDown(e),
-      onMouseLeave: (e: PIXI.interaction.InteractionEvent) =>
-        this.handleMouseOut(e),
-      onMouseMove: (e: PIXI.interaction.InteractionEvent) =>
-        this.handleMouseMove(e),
-      onMouseUp: (e: PIXI.interaction.InteractionEvent) => this.handleMouseUp(e)
-    };
+    if (!this.rootProps) {
+      // FIX: this will cache style on this listview once its rendered
+      // Once style is moved onto surface properly can skip
+      this.rootProps = {
+        ...this.props.style,
+        onBoundsChanged: (bounds: Bounds) => {
+          this.setState({ bounds });
+          // HACK
+          setTimeout(() => this.updateScrollingDimensions(bounds), 0);
+        },
+        onMouseDown: (e: PIXI.interaction.InteractionEvent) =>
+          this.handleMouseDown(e),
+        onMouseLeave: (e: PIXI.interaction.InteractionEvent) =>
+          this.handleMouseOut(e),
+        onMouseMove: (e: PIXI.interaction.InteractionEvent) =>
+          this.handleMouseMove(e),
+        onMouseUp: (e: PIXI.interaction.InteractionEvent) => this.handleMouseUp(e)
+      };
+    }
 
-    return <surface {...rootProps}>{items}</surface>;
+    return React.createElement(Surface, this.rootProps, items);
   }
 
   public renderItem(itemIndex: number, ty: number) {
     const item: T = this.props.itemGetter(itemIndex, this.state.scrollTop);
-    const priorItem = this.itemCache.get(itemIndex);
     const itemHeight: number = this.itemHeightCache.get(itemIndex) || 1;
 
     let totalScrolled = 0;
@@ -117,41 +114,25 @@ export default class ListView<T> extends React.Component<
       totalScrolled += this.itemHeightCache.get(i) || 1;
     }
 
-    let surface;
+    let props = this.surfaceElementPropCache.get(itemIndex);
 
-    // TODO can't mutate props
-    // surface = this.surfaceElementCache.get(itemIndex);
-
-    // const ty = itemIndex * itemHeight * 2 - this.state.scrollTop;
-    // const ty = Math.floor(this.state.scrollTop) % itemHeight;
-    // const ty = this.state.scrollTop - totalScrolled;
-
-    surface = (
-      <surface
-        top={0}
-        left={0}
-        translateY={ty}
-        key={itemIndex}
-        onBoundsChanged={b => {
+    if (props) {
+      props.translateY = ty;
+    } else {
+      props = {
+        top: 0,
+        left: 0,
+        translateY: ty,
+        key: itemIndex,
+        onBoundsChanged: (b: Bounds) => {
           this.itemHeightCache.set(itemIndex, b.height);
-        }}
-      >
-        {item}
-      </surface>
-    );
+        }
+      }
 
-    this.itemCache.set(itemIndex, item);
-    this.surfaceElementCache.set(itemIndex, surface);
+      this.surfaceElementPropCache.set(itemIndex, props);
+    }
 
-    /*if (surface.props.style.width !== this.props.style.width) {
-      surface.props.width = this.props.style.width;
-    }*/
-
-    /*if (surface.props.style.height !== itemHeight) {
-      surface.props.height = itemHeight;
-    }*/
-
-    return surface;
+    return React.createElement(Surface, props, item);
   }
 
   public pixiEventToFakeDomEvent(

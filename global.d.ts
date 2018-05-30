@@ -163,6 +163,7 @@ interface SurfaceEvents {
   onMouseDown?: (e: PIXI.interaction.InteractionEvent) => void;
   onMouseEnter?: (e: PIXI.interaction.InteractionEvent) => void;
   onMouseLeave?: (e: PIXI.interaction.InteractionEvent) => void;
+  onMouseMove?: (e: PIXI.interaction.InteractionEvent) => void;
   onTouchStart?: (e: PIXI.interaction.InteractionEvent) => void;
   onTouchEnd?: (e: PIXI.interaction.InteractionEvent) => void;
   onTouchMove?: (e: PIXI.interaction.InteractionEvent) => void;
