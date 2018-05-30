@@ -67,7 +67,25 @@ export default class ListView<T> extends React.Component<
       this.surfaceElementCache.clear();
     }
 
-    const items = this.getVisibleItemIndexes().map(i => this.renderItem(i));
+    const indexes = this.getVisibleItemIndexes();
+    let totalScrolled = 0;
+
+    // PERF is this OK?
+    for (let i = 0; i < indexes[0]; i += 1) {
+      totalScrolled += this.itemHeightCache.get(i) || 1;
+    }
+
+    const ty = -(this.state.scrollTop - totalScrolled);
+    console.log(
+      `totalScrolled: ${totalScrolled} ty: ${ty} first ${indexes[0]}`
+    );
+
+    // TODO can't mutate props
+    // surface = this.surfaceElementCache.get(itemIndex);
+
+    // const ty = itemIndex * itemHeight * 2 - this.state.scrollTop;
+    // const ty = Math.floor(this.state.scrollTop) % itemHeight;
+    const items = indexes.map(i => this.renderItem(i, ty));
 
     const rootProps = {
       ...this.props.style,
@@ -88,19 +106,25 @@ export default class ListView<T> extends React.Component<
     return <surface {...rootProps}>{items}</surface>;
   }
 
-  public renderItem(itemIndex: number) {
+  public renderItem(itemIndex: number, ty: number) {
     const item: T = this.props.itemGetter(itemIndex, this.state.scrollTop);
     const priorItem = this.itemCache.get(itemIndex);
     const itemHeight: number = this.itemHeightCache.get(itemIndex) || 1;
+
+    let totalScrolled = 0;
+
+    for (let i = 0; i < itemIndex; i += 1) {
+      totalScrolled += this.itemHeightCache.get(i) || 1;
+    }
 
     let surface;
 
     // TODO can't mutate props
     // surface = this.surfaceElementCache.get(itemIndex);
 
-    //const ty = itemIndex * itemHeight * 2 - this.state.scrollTop;
+    // const ty = itemIndex * itemHeight * 2 - this.state.scrollTop;
     // const ty = Math.floor(this.state.scrollTop) % itemHeight;
-    const ty = -this.state.scrollTop % itemHeight;
+    // const ty = this.state.scrollTop - totalScrolled;
 
     surface = (
       <surface
@@ -229,23 +253,16 @@ export default class ListView<T> extends React.Component<
     for (let index = 0; index < itemCount; index += 1) {
       const itemHeight = this.itemHeightCache.get(index) || 10;
 
-      itemScrollTop = index * itemHeight - scrollTop;
-
-      if (index === 0) {
-        console.log(
-          `scrollTop: ${scrollTop} height: ${itemHeight} canvas height: ${
-            this.state.bounds.height
-          }`
-        );
-      }
+      itemScrollTop += itemHeight;
 
       // Item is completely off-screen bottom
-      if (itemScrollTop >= this.state.bounds.height) {
+      if (itemScrollTop - scrollTop > this.state.bounds.height) {
+        itemIndexes.push(index);
         break;
       }
 
       // Item is completely off-screen top
-      if (itemScrollTop <= -itemHeight) {
+      if (itemScrollTop - scrollTop <= -itemHeight) {
         continue;
       }
 
@@ -253,7 +270,6 @@ export default class ListView<T> extends React.Component<
       itemIndexes.push(index);
     }
 
-    console.log(itemIndexes.length);
     return itemIndexes;
   }
 
